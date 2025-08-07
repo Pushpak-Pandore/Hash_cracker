@@ -35,6 +35,49 @@
 ### Clone the repository:
 
 ```bash
-git clone https://github.com/your-username/hashcrackx.git
+git clone https://github.com/Pushpak-Pandore/Hash_cracker.git
 cd hashcrackx
+
+
+1. Navigate to Your Project Folder
+cd ~/Downloads/hashcrackx
+
+2.Give Executable Permission to Your .sh Launcher
+chmod +x run_hashcrackx.sh
+
+🚀 3. Run the CLI Version
+./run_hashcrackx.sh
+```
+
+##  🌐 Run the Web GUI Version
+
+```bash
+cd hashcrackx_web/
+
+python app.py
+
+```
+⚠️ Disclaimer
+
+This project, HashCrackX, is intended strictly for educational, research, and ethical security testing purposes only.
+
+    Do not use this tool to crack passwords or hashes that you do not own or have explicit permission to test.
+
+    The developers and contributors of this project are not responsible for any misuse or illegal activity performed using this tool.
+
+    Always ensure you comply with local, national, and international laws regarding cybersecurity, data privacy, and ethical hacking.
+
+    Use HashCrackX in a controlled environment such as:
+
+        Penetration testing labs
+
+        Capture The Flag (CTF) competitions
+
+        Authorized security audits
+
+By using this tool, you agree that:
+
+    “I take full responsibility for how I use HashCrackX and acknowledge the risks involved in offensive security operations.”
+
+
 
