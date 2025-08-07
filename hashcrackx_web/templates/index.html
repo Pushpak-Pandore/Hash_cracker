@@ -1,0 +1,689 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HashCrackX - Web Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            margin: 0;
+            padding: 0;
+        }
+        nav {
+            background-color: #161b22;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #30363d;
+        }
+        nav h1 {
+            color: #58a6ff;
+            margin: 0;
+        }
+        main {
+            padding: 2rem;
+            max-width: 800px;
+            margin: auto;
+        }
+        h2 {
+            color: #58a6ff;
+        }
+        label {
+            display: block;
+            margin-top: 1rem;
+        }
+        input, select, textarea, button {
+            width: 100%;
+            padding: 0.6rem;
+            margin-top: 0.3rem;
+            border-radius: 8px;
+            border: none;
+            background-color: #21262d;
+            color: #c9d1d9;
+        }
+        button {
+            background-color: #238636;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2ea043;
+        }
+        .log {
+            background-color: #161b22;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 2rem;
+            height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 0 10px rgba(88, 166, 255, 0.3);
+            font-family: monospace;
+        }
+        .crack-time {
+            margin-top: 1rem;
+            font-style: italic;
+            color: #8b949e;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <h1><i class="fas fa-lock"></i> HashCrackX</h1>
+    </nav>
+    <main>
+        <h2>🔐 Hash Cracking Interface</h2>
+        <form id="crackForm">
+            <label>Enter Hash:</label>
+            <input type="text" name="hash" required>
+
+            <label>Hash Type:</label>
+            <select name="hashType">
+                <option value="">Auto Detect</option>
+                <option value="md5">MD5</option>
+                <option value="sha1">SHA-1</option>
+                <option value="sha224">SHA-224</option>
+                <option value="sha256">SHA-256</option>
+                <option value="sha384">SHA-384</option>
+                <option value="sha512">SHA-512</option>
+            </select>
+
+            <label><input type="checkbox" name="useWordlist" id="useWordlist"> Use Wordlist</label>
+
+            <div id="wordlistUpload" class="hidden">
+                <label>Upload Wordlist File:</label>
+                <input type="file" name="wordlistFile">
+            </div>
+
+            <div id="bruteFields">
+                <label>Character Set:</label>
+                <input type="text" name="characters" value="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789">
+
+                <label>Min Length:</label>
+                <input type="number" name="minLength" value="1">
+
+                <label>Max Length:</label>
+                <input type="number" name="maxLength" value="4">
+            </div>
+
+            <button type="submit">🚀 Start Cracking</button>
+        </form>
+
+        <div class="crack-time" id="timeDisplay">⏱️ Time Elapsed: 0.00s</div>
+
+        <div class="log" id="log"></div>
+    </main>
+
+    <script>
+        const socket = io();
+        const log = document.getElementById('log');
+        const timeDisplay = document.getElementById('timeDisplay');
+        let startTime;
+
+        socket.on('log', function(msg) {
+            const p = document.createElement('p');
+            p.innerText = msg.data;
+            if (msg.data.includes('✅')) p.style.color = '#2ea043';
+            if (msg.data.includes('[!]')) p.style.color = '#f85149';
+            if (msg.data.includes('[*]')) p.style.color = '#d29922';
+            log.appendChild(p);
+            log.scrollTop = log.scrollHeight;
+            if (msg.data.includes('✅') || msg.data.includes('not')) updateTimer();
+        });
+
+        document.getElementById('crackForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            fetch('/crack', { method: 'POST', body: formData });
+            log.innerHTML = '';
+            startTime = new Date();
+            updateTimer();
+        });
+
+        function updateTimer() {
+            if (!startTime) return;
+            const interval = setInterval(() => {
+                const elapsed = ((new Date() - startTime) / 1000).toFixed(2);
+                timeDisplay.innerText = `⏱️ Time Elapsed: ${elapsed}s`;
+                if (log.innerText.includes('✅') || log.innerText.includes('not')) clearInterval(interval);
+            }, 500);
+        }
+
+        const useWordlistCheckbox = document.getElementById('useWordlist');
+        const wordlistUpload = document.getElementById('wordlistUpload');
+        const bruteFields = document.getElementById('bruteFields');
+
+        useWordlistCheckbox.addEventListener('change', () => {
+            if (useWordlistCheckbox.checked) {
+                wordlistUpload.classList.remove('hidden');
+                bruteFields.classList.add('hidden');
+            } else {
+                wordlistUpload.classList.add('hidden');
+                bruteFields.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html> -- >
+
+
+<! -- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HashCrackX - Web Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <link rel="stylesheet" href="/static/styles.css"/>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0d1117;
+      color: #c9d1d9;
+      margin: 0;
+      padding: 0;
+    }
+
+    nav {
+      background-color: #161b22;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #30363d;
+    }
+
+    nav h1 {
+      color: #58a6ff;
+      margin: 0;
+    }
+
+    main {
+      padding: 2rem;
+      max-width: 800px;
+      margin: auto;
+    }
+
+    h2 {
+      color: #58a6ff;
+    }
+
+    label {
+      display: block;
+      margin-top: 1rem;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="file"],
+    select,
+    textarea,
+    button {
+      width: 100%;
+      padding: 0.6rem;
+      margin-top: 0.3rem;
+      border-radius: 8px;
+      border: none;
+      background-color: #21262d;
+      color: #c9d1d9;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #238636;
+    }
+
+    button {
+      background-color: #238636;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #2ea043;
+    }
+
+    .log {
+      background-color: #161b22;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 2rem;
+      height: 300px;
+      overflow-y: auto;
+      box-shadow: 0 0 10px rgba(88, 166, 255, 0.3);
+      font-family: monospace;
+    }
+
+    .crack-time {
+      margin-top: 1rem;
+      font-style: italic;
+      color: #8b949e;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media screen and (max-width: 600px) {
+      input,
+      select,
+      button {
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h1><i class="fas fa-lock"></i> HashCrackX</h1>
+  </nav>
+
+  <main>
+    <h2>🔐 Hash Cracking Interface</h2>
+    <form id="crackForm">
+      <label>Enter Hash:</label>
+      <input type="text" name="hash" required />
+
+      <label>Hash Type:</label>
+      <select name="hashType">
+        <option value="">Auto Detect</option>
+        <option value="md5">MD5</option>
+        <option value="sha1">SHA-1</option>
+        <option value="sha224">SHA-224</option>
+        <option value="sha256">SHA-256</option>
+        <option value="sha384">SHA-384</option>
+        <option value="sha512">SHA-512</option>
+      </select>
+
+      <div class="checkbox-label">
+        <input type="checkbox" name="useWordlist" id="useWordlist"/>
+        <label for="useWordlist" style="margin: 0;">Use Wordlist</label>
+      </div>
+
+      <div id="wordlistUpload" class="hidden">
+        <label>Upload Wordlist File:</label>
+        <input type="file" name="wordlistFile" />
+      </div>
+
+      <div id="bruteFields">
+        <label>Character Set:</label>
+        <input type="text" name="characters" value="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"/>
+
+        <label>Min Length:</label>
+        <input type="number" name="minLength" value="1"/>
+
+        <label>Max Length:</label>
+        <input type="number" name="maxLength" value="4"/>
+      </div>
+
+      <button type="submit">🚀 Start Cracking</button>
+    </form>
+
+    <div class="crack-time" id="timeDisplay">⏱️ Time Elapsed: 0.00s</div>
+    <div class="log" id="log"></div>
+  </main>
+
+  <script>
+    const socket = io();
+    const log = document.getElementById('log');
+    const timeDisplay = document.getElementById('timeDisplay');
+    let startTime;
+
+    socket.on('log', function(msg) {
+      const p = document.createElement('p');
+      p.innerText = msg.data;
+      if (msg.data.includes('✅')) p.style.color = '#2ea043';
+      if (msg.data.includes('[!]')) p.style.color = '#f85149';
+      if (msg.data.includes('[*]')) p.style.color = '#d29922';
+      log.appendChild(p);
+      log.scrollTop = log.scrollHeight;
+      if (msg.data.includes('✅') || msg.data.includes('not')) updateTimer();
+    });
+
+    document.getElementById('crackForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+      fetch('/crack', { method: 'POST', body: formData });
+      log.innerHTML = '';
+      startTime = new Date();
+      updateTimer();
+    });
+
+    function updateTimer() {
+      if (!startTime) return;
+      const interval = setInterval(() => {
+        const elapsed = ((new Date() - startTime) / 1000).toFixed(2);
+        timeDisplay.innerText = `⏱️ Time Elapsed: ${elapsed}s`;
+        if (log.innerText.includes('✅') || log.innerText.includes('not')) clearInterval(interval);
+      }, 500);
+    }
+
+    const useWordlistCheckbox = document.getElementById('useWordlist');
+    const wordlistUpload = document.getElementById('wordlistUpload');
+    const bruteFields = document.getElementById('bruteFields');
+
+    useWordlistCheckbox.addEventListener('change', () => {
+      wordlistUpload.classList.toggle('hidden', !useWordlistCheckbox.checked);
+      bruteFields.classList.toggle('hidden', useWordlistCheckbox.checked);
+    });
+  </script>
+</body>
+</html>
+--->
+
+
+
+
+
+<!---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HashCrackX Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+</head>
+<body>
+  <nav>
+    <h1>🔐 HashCrackX</h1>
+  </nav>
+
+  <main>
+    <h2>Crack Hash</h2>
+    <form id="crackForm" enctype="multipart/form-data">
+      <label for="hash">Enter Hash:</label>
+      <input type="text" id="hash" name="hash" required />
+
+      <label for="hash_type">Hash Type:</label>
+      <select id="hash_type" name="hash_type">
+        <option value="auto">Auto Detect</option>
+        <option value="md5">MD5</option>
+        <option value="sha1">SHA1</option>
+        <option value="sha256">SHA256</option>
+        <option value="sha512">SHA512</option>
+        <option value="bcrypt">Bcrypt</option>
+        <option value="argon2">Argon2</option>
+      </select>
+
+      <label for="mode">Crack Mode:</label>
+      <select id="mode" name="mode">
+        <option value="wordlist">Wordlist</option>
+        <option value="brute">Brute Force</option>
+      </select>
+
+      <div id="wordlist_input">
+        <label for="wordlist">Upload Wordlist:</label>
+        <input type="file" id="wordlist" name="wordlist" />
+      </div>
+
+      <div id="brute_inputs" class="hidden">
+        <label for="min_length">Min Length:</label>
+        <input type="number" id="min_length" name="min_length" min="1" value="1" />
+
+        <label for="max_length">Max Length:</label>
+        <input type="number" id="max_length" name="max_length" min="1" value="4" />
+
+        <label for="charset">Charset (leave blank for a-zA-Z0-9):</label>
+        <input type="text" id="charset" name="charset" />
+      </div>
+
+      <button type="submit">🚀 Start Cracking</button>
+      <div id="spinner" class="hidden">🔄 Cracking in progress...</div>
+    </form>
+
+    <div class="crack-time" id="crackTime"></div>
+
+    <div class="log" id="logBox">
+      <strong>📜 Cracking Log:</strong>
+      <div id="log"></div>
+    </div>
+
+    <button onclick="exportLog()">📤 Export Log</button>
+  </main>
+
+  <script>
+    const socket = io();
+    const form = document.getElementById('crackForm');
+    const modeSelect = document.getElementById('mode');
+    const wordlistInput = document.getElementById('wordlist_input');
+    const bruteInputs = document.getElementById('brute_inputs');
+    const spinner = document.getElementById('spinner');
+    const logBox = document.getElementById('log');
+    const crackTime = document.getElementById('crackTime');
+
+    modeSelect.addEventListener('change', () => {
+      const mode = modeSelect.value;
+      if (mode === 'wordlist') {
+        wordlistInput.classList.remove('hidden');
+        bruteInputs.classList.add('hidden');
+      } else {
+        wordlistInput.classList.add('hidden');
+        bruteInputs.classList.remove('hidden');
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      logBox.innerHTML = '';
+      crackTime.textContent = '';
+      spinner.classList.remove('hidden');
+
+      const response = await fetch('/crack', {
+        method: 'POST',
+        body: formData
+      });
+
+      spinner.classList.add('hidden');
+
+      if (!response.ok) {
+        const text = await response.text();
+        logBox.innerHTML = `<span style="color: red;">❌ Error: ${text}</span>`;
+      }
+    });
+
+    socket.on('log', (msg) => {
+      const p = document.createElement('p');
+      p.textContent = msg;
+      p.style.background = '#1e1e2f';
+      logBox.appendChild(p);
+      logBox.scrollTop = logBox.scrollHeight;
+      setTimeout(() => (p.style.background = 'transparent'), 500);
+    });
+
+    socket.on('done', (result) => {
+      crackTime.textContent = `✅ Time taken: ${result.time} seconds`;
+    });
+
+    function exportLog() {
+      const text = logBox.innerText;
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'cracking_log.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html> --->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>HashCrackX | Crack Hashes</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>⚡ HashCrackX: Real-Time Hash Cracker</h1>
+  </header>
+
+  <main>
+    <form id="crackForm" enctype="multipart/form-data">
+      <label for="hashInput">🔐 Enter Hash:</label>
+      <input type="text" id="hashInput" name="hashInput" required />
+
+      <label for="hashType">🧬 Hash Type:</label>
+      <select id="hashType" name="hashType" required>
+        <option value="">Auto Detect</option>
+        <option value="md5">MD5</option>
+        <option value="sha1">SHA1</option>
+        <option value="sha256">SHA256</option>
+        <option value="sha512">SHA512</option>
+        <option value="bcrypt">bcrypt</option>
+        <option value="argon2">argon2</option>
+      </select>
+
+      <label for="mode">⚙️ Cracking Mode:</label>
+      <select id="mode" name="mode" required onchange="toggleModeFields()">
+        <option value="wordlist">Wordlist</option>
+        <option value="bruteforce">Brute Force</option>
+      </select>
+
+      <div id="wordlistFields">
+        <label for="wordlist">📁 Upload Wordlist:</label>
+        <input type="file" id="wordlist" name="wordlist" />
+      </div>
+
+      <div id="bruteFields" style="display: none;">
+        <label for="charset">🔡 Charset (e.g. abc123):</label>
+        <input type="text" id="charset" name="charset" value="abc123" />
+
+        <label for="minLength">Min Length:</label>
+        <input type="number" id="minLength" name="minLength" value="1" min="1" />
+
+        <label for="maxLength">Max Length:</label>
+        <input type="number" id="maxLength" name="maxLength" value="5" min="1" />
+      </div>
+
+      <button type="submit">🚀 Crack Hash</button>
+    </form>
+
+    <div id="spinner" class="spinner" style="display: none;"></div>
+
+    <div id="timer">⏱️ Time Elapsed: 0s</div>
+
+    <div class="progress-section">
+      <progress id="progressBar" value="0" max="100"></progress>
+      <span id="progressPercent">0%</span>
+    </div>
+
+    <div id="crackedOutput"></div>
+
+    <div id="logBox">
+      <h3>📜 Cracking Log <button onclick="downloadLog()">📥 Save Logs</button></h3>
+      <div id="logs"></div>
+    </div>
+
+    <!-- 🔔 Notification Sound -->
+    <audio id="successSound" src="{{ url_for('static', filename='complete.mp3') }}"></audio>
+  </main>
+
+  <script>
+    const socket = io();
+    const logBox = document.getElementById("logs");
+    const crackedOutput = document.getElementById("crackedOutput");
+    const timer = document.getElementById("timer");
+    const progressBar = document.getElementById("progressBar");
+    const progressPercent = document.getElementById("progressPercent");
+    const spinner = document.getElementById("spinner");
+    const sound = document.getElementById("successSound");
+
+    let startTime;
+    let elapsedInterval;
+
+    function toggleModeFields() {
+      const mode = document.getElementById("mode").value;
+      document.getElementById("wordlistFields").style.display = mode === "wordlist" ? "block" : "none";
+      document.getElementById("bruteFields").style.display = mode === "bruteforce" ? "block" : "none";
+    }
+
+    function resetTimer() {
+      clearInterval(elapsedInterval);
+      startTime = new Date();
+      timer.textContent = "⏱️ Time Elapsed: 0s";
+      elapsedInterval = setInterval(() => {
+        const seconds = Math.floor((new Date() - startTime) / 1000);
+        timer.textContent = `⏱️ Time Elapsed: ${seconds}s`;
+      }, 1000);
+    }
+
+    document.getElementById("crackForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      crackedOutput.innerHTML = "";
+      logBox.innerHTML = "";
+      progressBar.value = 0;
+      progressPercent.textContent = "0%";
+      resetTimer();
+      spinner.style.display = "inline-block";
+
+      const formData = new FormData(this);
+      fetch("/crack", {
+        method: "POST",
+        body: formData
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          console.log("Crack request sent successfully.");
+        }
+      });
+    });
+
+    socket.on("log", msg => {
+      const div = document.createElement("div");
+      div.className = "log-entry";
+      div.textContent = msg;
+      logBox.appendChild(div);
+      logBox.scrollTop = logBox.scrollHeight;
+    });
+
+    socket.on("cracked", result => {
+      crackedOutput.innerHTML = `✅ <strong>Cracked Password:</strong> ${result}`;
+      clearInterval(elapsedInterval);
+      spinner.style.display = "none";
+      sound.play(); // 🔔 Play sound
+    });
+
+    socket.on("progress", percent => {
+      progressBar.value = percent;
+      progressPercent.textContent = `${percent}%`;
+    });
+
+    function downloadLog() {
+      const blob = new Blob([logBox.innerText], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "cracking_log.txt";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
+
