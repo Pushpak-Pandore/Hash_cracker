@@ -270,7 +270,24 @@ CHARSET_MAP = {
     "numeric": string.digits,
     "alpha": string.ascii_letters,
     "alphanumeric": string.ascii_letters + string.digits,
-    "all": string.ascii_letters + string.digits + string.punctuation
+    "all": string.ascii_letters + string.digits + string.punctuation,
+    "lowercase": string.ascii_lowercase,
+    "uppercase": string.ascii_uppercase,
+    "hex": "0123456789abcdef"
+}
+
+# Enhanced hash type detection
+HASH_FUNCTIONS = {
+    'md5': lambda x: hashlib.md5(x.encode()).hexdigest(),
+    'sha1': lambda x: hashlib.sha1(x.encode()).hexdigest(),
+    'sha224': lambda x: hashlib.sha224(x.encode()).hexdigest(),
+    'sha256': lambda x: hashlib.sha256(x.encode()).hexdigest(),
+    'sha384': lambda x: hashlib.sha384(x.encode()).hexdigest(),
+    'sha512': lambda x: hashlib.sha512(x.encode()).hexdigest(),
+    'sha3_224': lambda x: hashlib.sha3_224(x.encode()).hexdigest(),
+    'sha3_256': lambda x: hashlib.sha3_256(x.encode()).hexdigest(),
+    'sha3_384': lambda x: hashlib.sha3_384(x.encode()).hexdigest(),
+    'sha3_512': lambda x: hashlib.sha3_512(x.encode()).hexdigest(),
 }
 
 def detect_hash_type(hash_str):
