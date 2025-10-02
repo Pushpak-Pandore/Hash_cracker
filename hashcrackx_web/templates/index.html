@@ -26,13 +26,27 @@
                 <label for="hashType"><i class="fas fa-cog"></i> Hash Type:</label>
                 <select id="hashType" name="hash_type">
                     <option value="">Auto Detect</option>
-                    <option value="md5">MD5</option>
-                    <option value="sha1">SHA1</option>
-                    <option value="sha224">SHA224</option>
-                    <option value="sha256">SHA256</option>
-                    <option value="sha384">SHA384</option>
-                    <option value="sha512">SHA512</option>
+                    <optgroup label="Common Hash Types">
+                        <option value="md5">MD5 (32 chars)</option>
+                        <option value="sha1">SHA1 (40 chars)</option>
+                        <option value="sha256">SHA256 (64 chars)</option>
+                        <option value="sha512">SHA512 (128 chars)</option>
+                    </optgroup>
+                    <optgroup label="Extended Hash Types">
+                        <option value="sha224">SHA224 (56 chars)</option>
+                        <option value="sha384">SHA384 (96 chars)</option>
+                        <option value="sha3_224">SHA3-224</option>
+                        <option value="sha3_256">SHA3-256</option>
+                        <option value="sha3_384">SHA3-384</option>
+                        <option value="sha3_512">SHA3-512</option>
+                    </optgroup>
+                    <optgroup label="Advanced Hash Types">
+                        <option value="bcrypt">bcrypt ($2a$, $2b$, $2y$)</option>
+                        <option value="argon2">Argon2 ($argon2)</option>
+                        <option value="scrypt">scrypt ($7$)</option>
+                    </optgroup>
                 </select>
+                <div id="hashInfo" class="hash-info" style="display: none;"></div>
             </div>
 
             <div class="form-group">
