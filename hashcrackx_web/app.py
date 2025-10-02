@@ -332,7 +332,7 @@ def compute_hash(hash_type, text, salt=None):
                 return bcrypt.hashpw(text.encode(), salt).decode()
             return None  # bcrypt needs salt for verification
         elif hash_type == 'scrypt':
-            if scrypt and salt:
+            if salt:
                 return scrypt.hash(text, salt).hex()
             return None
         elif hash_type == 'argon2':
