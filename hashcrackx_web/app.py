@@ -324,8 +324,51 @@ def detect_hash_type(hash_str):
     
     return detected_type
 
-def compute_hash(hash_type, text):
-    return getattr(hashlib, hash_type)(text.encode()).hexdigest()
+def compute_hash(hash_type, text, salt=None):
+    """Enhanced hash computation with support for advanced hash types"""
+    try:
+        if hash_type == 'bcrypt':
+            if salt:
+                return bcrypt.hashpw(text.encode(), salt).decode()
+            return None  # bcrypt needs salt for verification
+        elif hash_type == 'scrypt':
+            if salt:
+                return scrypt.hash(text, salt).hex()
+            return None
+        elif hash_type == 'argon2':
+            if salt:
+                ph = PasswordHasher()
+                return ph.hash(text)
+            return None
+        elif hash_type in HASH_FUNCTIONS:
+            return HASH_FUNCTIONS[hash_type](text)
+        else:
+            # Fallback to hashlib
+            return getattr(hashlib, hash_type)(text.encode()).hexdigest()
+    except Exception as e:
+        emit_log(f"[!] Hash computation error: {e}")
+        return None
+
+def verify_hash(hash_type, text, target_hash):
+    """Verify hash with support for salted hashes"""
+    try:
+        if hash_type == 'bcrypt':
+            return bcrypt.checkpw(text.encode(), target_hash.encode())
+        elif hash_type == 'argon2':
+            ph = PasswordHasher()
+            try:
+                ph.verify(target_hash, text)
+                return True
+            except (VerifyMismatchError, HashingError):
+                return False
+        elif hash_type == 'scrypt':
+            # Scrypt verification is more complex, skip for now
+            return False
+        else:
+            computed = compute_hash(hash_type, text)
+            return computed == target_hash.lower()
+    except Exception:
+        return False
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
