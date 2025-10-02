@@ -255,10 +255,16 @@ ALLOWED_EXTENSIONS = {'txt'}
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-socketio = SocketIO(app, async_mode='threading')
+app.config['SECRET_KEY'] = secrets.token_hex(16)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+socketio = SocketIO(app, async_mode='threading', cors_allowed_origins="*")
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+
+# Global variables for managing cracking sessions
+active_sessions = {}
+session_results = {}
 
 CHARSET_MAP = {
     "numeric": string.digits,
