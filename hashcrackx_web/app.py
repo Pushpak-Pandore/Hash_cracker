@@ -363,9 +363,7 @@ def verify_hash(hash_type, text, target_hash):
                 return False
         elif hash_type == 'scrypt':
             # Scrypt verification is more complex, skip for now  
-            if scrypt:
-                # TODO: Implement scrypt verification with proper salt handling
-                pass
+            # TODO: Implement scrypt verification with proper salt handling
             return False
         else:
             computed = compute_hash(hash_type, text)
