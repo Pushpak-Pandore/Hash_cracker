@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HashCrackX - Advanced Hash Cracking Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <h1><i class="fas fa-shield-alt"></i> HashCrackX</h1>
+        <p>Advanced Real-Time Hash Cracking Tool</p>
+    </header>
+
+    <main>
+        <form id="crackForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="hashInput"><i class="fas fa-key"></i> Enter Hash to Crack:</label>
+                <input type="text" id="hashInput" name="hash" required 
+                       placeholder="e.g., 5d41402abc4b2a76b9719d911017c592">
+            </div>
+
+            <div class="form-group">
+                <label for="hashType"><i class="fas fa-cog"></i> Hash Type:</label>
+                <select id="hashType" name="hash_type">
+                    <option value="">Auto Detect</option>
+                    <option value="md5">MD5</option>
+                    <option value="sha1">SHA1</option>
+                    <option value="sha224">SHA224</option>
+                    <option value="sha256">SHA256</option>
+                    <option value="sha384">SHA384</option>
+                    <option value="sha512">SHA512</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="mode"><i class="fas fa-tools"></i> Cracking Mode:</label>
+                <select id="mode" name="mode" onchange="toggleModeFields()" required>
+                    <option value="wordlist">Wordlist Attack</option>
+                    <option value="brute">Brute Force Attack</option>
+                </select>
+            </div>
+
+            <div id="wordlistFields" class="mode-fields">
+                <div class="form-group">
+                    <label for="wordlist"><i class="fas fa-file-upload"></i> Upload Wordlist (.txt):</label>
+                    <input type="file" id="wordlist" name="wordlist" accept=".txt">
+                    <small>Upload a text file containing potential passwords (one per line)</small>
+                </div>
+            </div>
+
+            <div id="bruteFields" class="mode-fields" style="display: none;">
+                <div class="form-group">
+                    <label for="charset"><i class="fas fa-font"></i> Character Set:</label>
+                    <select id="charset" name="charset">
+                        <option value="numeric">Numbers only (0-9)</option>
+                        <option value="alpha">Letters only (a-z, A-Z)</option>
+                        <option value="alphanumeric" selected>Letters + Numbers (a-z, A-Z, 0-9)</option>
+                        <option value="all">All printable characters</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="minLength"><i class="fas fa-arrow-right"></i> Min Length:</label>
+                        <input type="number" id="minLength" name="min_length" value="1" min="1" max="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="maxLength"><i class="fas fa-arrow-left"></i> Max Length:</label>
+                        <input type="number" id="maxLength" name="max_length" value="4" min="1" max="10">
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" id="crackBtn">
+                <i class="fas fa-rocket"></i> Start Cracking
+            </button>
+        </form>
+
+        <div class="status-section">
+            <div id="timer" class="timer">
+                <i class="fas fa-clock"></i> Ready to crack
+            </div>
+            
+            <div class="progress-section" id="progressSection" style="display: none;">
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <span id="progressPercent">0%</span>
+            </div>
+
+            <div id="result" class="result-section" style="display: none;"></div>
+        </div>
+
+        <div id="logContainer" class="log-container">
+            <div class="log-header">
+                <h3><i class="fas fa-terminal"></i> Cracking Log</h3>
+                <button onclick="clearLog()" class="clear-btn" type="button">
+                    <i class="fas fa-trash"></i> Clear
+                </button>
+                <button onclick="downloadLog()" class="download-btn" type="button">
+                    <i class="fas fa-download"></i> Download Log
+                </button>
+            </div>
+            <div id="logBox" class="log-box"></div>
+        </div>
+    </main>
+
+    <audio id="successSound" preload="auto">
+        <source src="{{ url_for('static', filename='complete.mp3') }}" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const socket = io();
+        const form = document.getElementById('crackForm');
+        const logBox = document.getElementById('logBox');
+        const timer = document.getElementById('timer');
+        const progressSection = document.getElementById('progressSection');
+        const progressFill = document.getElementById('progressFill');
+        const progressPercent = document.getElementById('progressPercent');
+        const result = document.getElementById('result');
+        const crackBtn = document.getElementById('crackBtn');
+        const successSound = document.getElementById('successSound');
+
+        let startTime;
+        let timerInterval;
+        let isRunning = false;
+
+        function toggleModeFields() {
+            const mode = document.getElementById('mode').value;
+            const wordlistFields = document.getElementById('wordlistFields');
+            const bruteFields = document.getElementById('bruteFields');
+            
+            if (mode === 'wordlist') {
+                wordlistFields.style.display = 'block';
+                bruteFields.style.display = 'none';
+            } else {
+                wordlistFields.style.display = 'none';
+                bruteFields.style.display = 'block';
+            }
+        }
+
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                timer.innerHTML = `<i class="fas fa-clock"></i> Time: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function resetUI() {
+            progressSection.style.display = 'none';
+            result.style.display = 'none';
+            progressFill.style.width = '0%';
+            progressPercent.textContent = '0%';
+            timer.innerHTML = '<i class="fas fa-clock"></i> Ready to crack';
+        }
+
+        function addLog(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> ${message}`;
+            logBox.appendChild(logEntry);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function clearLog() {
+            logBox.innerHTML = '';
+        }
+
+        function downloadLog() {
+            const text = logBox.innerText;
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `hashcrack_log_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (isRunning) {
+                alert('Cracking is already in progress!');
+                return;
+            }
+
+            const formData = new FormData(form);
+            const mode = formData.get('mode');
+            const hashInput = formData.get('hash');
+            const hashType = formData.get('hash_type');
+
+            if (!hashInput.trim()) {
+                alert('Please enter a hash to crack!');
+                return;
+            }
+
+            // Reset UI
+            resetUI();
+            clearLog();
+            isRunning = true;
+            crackBtn.disabled = true;
+            crackBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cracking...';
+            
+            progressSection.style.display = 'flex';
+            startTimer();
+
+            try {
+                let crackData = {
+                    hash: hashInput,
+                    hash_type: hashType,
+                    mode: mode
+                };
+
+                if (mode === 'wordlist') {
+                    const wordlistFile = document.getElementById('wordlist').files[0];
+                    if (!wordlistFile) {
+                        alert('Please upload a wordlist file!');
+                        resetCrackingState();
+                        return;
+                    }
+
+                    // Upload wordlist first
+                    const uploadFormData = new FormData();
+                    uploadFormData.append('wordlist', wordlistFile);
+                    
+                    const uploadResponse = await fetch('/upload', {
+                        method: 'POST',
+                        body: uploadFormData
+                    });
+                    
+                    const uploadResult = await uploadResponse.json();
+                    if (!uploadResult.success) {
+                        alert('Failed to upload wordlist: ' + uploadResult.error);
+                        resetCrackingState();
+                        return;
+                    }
+                    
+                    crackData.wordlist_file = uploadResult.path;
+                } else {
+                    crackData.charset = formData.get('charset');
+                    crackData.min_length = formData.get('min_length');
+                    crackData.max_length = formData.get('max_length');
+                }
+
+                addLog('Starting hash cracking session...', 'info');
+                socket.emit('start_crack', crackData);
+
+            } catch (error) {
+                addLog(`Error: ${error.message}`, 'error');
+                resetCrackingState();
+            }
+        });
+
+        function resetCrackingState() {
+            isRunning = false;
+            crackBtn.disabled = false;
+            crackBtn.innerHTML = '<i class="fas fa-rocket"></i> Start Cracking';
+            stopTimer();
+        }
+
+        // SocketIO Event Handlers
+        socket.on('log', (data) => {
+            addLog(data.message, 'info');
+        });
+
+        socket.on('progress', (data) => {
+            const percent = data.percent;
+            progressFill.style.width = `${percent}%`;
+            progressPercent.textContent = `${percent}%`;
+        });
+
+        socket.on('cracked', (data) => {
+            stopTimer();
+            result.style.display = 'block';
+            result.innerHTML = `<i class="fas fa-check-circle"></i> ${data.result}`;
+            
+            if (data.result.includes('✅')) {
+                result.className = 'result-section success';
+                successSound.play().catch(() => {}); // Play sound if possible
+            } else {
+                result.className = 'result-section failed';
+            }
+            
+            resetCrackingState();
+        });
+
+        socket.on('timer', (data) => {
+            // Backend timer updates (if needed)
+        });
+
+        // Initialize
+        toggleModeFields();
+    </script>
+</body>
+</html>
