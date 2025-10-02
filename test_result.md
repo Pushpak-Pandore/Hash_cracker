@@ -96,15 +96,16 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Hash Auto-Detection Testing"
     - "Brute Force Mode Testing"
-    - "Wordlist Mode Testing"
     - "Real-time Features Testing"
-    - "Error Handling Testing"
-  stuck_tasks: []
+  stuck_tasks:
+    - "Brute Force Mode Testing"
+    - "Real-time Features Testing"
   test_all: true
   test_priority: "high_first"
 
 agent_communication:
   - agent: "testing"
     message: "Starting comprehensive testing of HashCrackX enhanced functionality. Will test all features systematically starting with hash auto-detection."
+  - agent: "testing"
+    message: "CRITICAL ISSUE: Browser automation tool unable to properly load frontend UI. Page content only 39 characters instead of expected 19,190. Backend APIs working correctly but frontend interaction testing blocked. Backend functionality verified via direct API testing: hash detection, file upload, session management, and error handling all working. Need main agent to investigate frontend loading issue - possible JavaScript/CSS loading problem or browser compatibility issue."
