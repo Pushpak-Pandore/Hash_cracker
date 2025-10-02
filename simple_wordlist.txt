@@ -1,5 +1,0 @@
--e hello
-world
-test
-password
-admin
