@@ -163,9 +163,104 @@
             if (mode === 'wordlist') {
                 wordlistFields.style.display = 'block';
                 bruteFields.style.display = 'none';
+                complexityWarning.style.display = 'none';
             } else {
                 wordlistFields.style.display = 'none';
                 bruteFields.style.display = 'block';
+                updateComplexityWarning();
+            }
+        }
+
+        function validateHash(hashValue) {
+            if (!hashValue) return null;
+            
+            const hexPattern = /^[a-fA-F0-9]+$/;
+            const bcryptPattern = /^\$2[ayb]\$.{56}$/;
+            const argon2Pattern = /^\$argon2[id]?\$v=\d+\$m=\d+,t=\d+,p=\d+\$/;
+            const scryptPattern = /^\$7\$/;
+            
+            if (bcryptPattern.test(hashValue)) return 'bcrypt';
+            if (argon2Pattern.test(hashValue)) return 'argon2';
+            if (scryptPattern.test(hashValue)) return 'scrypt';
+            if (hexPattern.test(hashValue)) {
+                const length = hashValue.length;
+                const lengthMap = {
+                    32: 'MD5',
+                    40: 'SHA1',
+                    56: 'SHA224', 
+                    64: 'SHA256',
+                    96: 'SHA384',
+                    128: 'SHA512'
+                };
+                return lengthMap[length] || 'Unknown length';
+            }
+            
+            return 'Invalid format';
+        }
+
+        function updateHashInfo() {
+            const hash = hashInput.value.trim();
+            if (!hash) {
+                hashInfo.style.display = 'none';
+                return;
+            }
+            
+            const detected = validateHash(hash);
+            if (detected && detected !== 'Invalid format') {
+                hashInfo.innerHTML = `<i class="fas fa-info-circle"></i> Detected: ${detected}`;
+                hashInfo.className = 'hash-info valid';
+                hashInfo.style.display = 'block';
+            } else {
+                hashInfo.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${detected || 'Invalid hash format'}`;
+                hashInfo.className = 'hash-info invalid';
+                hashInfo.style.display = 'block';
+            }
+        }
+
+        function calculateComplexity() {
+            const charset = document.getElementById('charset').value;
+            const minLen = parseInt(document.getElementById('minLength').value) || 1;
+            const maxLen = parseInt(document.getElementById('maxLength').value) || 4;
+            
+            const charsetSizes = {
+                'numeric': 10,
+                'lowercase': 26,
+                'uppercase': 26,
+                'alpha': 52,
+                'alphanumeric': 62,
+                'hex': 16,
+                'all': 95
+            };
+            
+            const charsetSize = charsetSizes[charset] || 62;
+            let totalCombinations = 0;
+            
+            for (let len = minLen; len <= maxLen; len++) {
+                totalCombinations += Math.pow(charsetSize, len);
+            }
+            
+            return totalCombinations;
+        }
+
+        function updateComplexityWarning() {
+            const complexity = calculateComplexity();
+            
+            if (complexity > 100000000) { // 100M combinations
+                complexityWarning.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Very high complexity (~${(complexity/1000000).toFixed(1)}M combinations)! This may take hours or days.</span>
+                `;
+                complexityWarning.style.display = 'block';
+                complexityWarning.className = 'complexity-warning high';
+            } else if (complexity > 10000000) { // 10M combinations
+                complexityWarning.innerHTML = `
+                    <i class="fas fa-clock"></i>
+                    <span>High complexity (~${(complexity/1000000).toFixed(1)}M combinations). This may take several minutes.</span>
+                `;
+                complexityWarning.style.display = 'block';
+                complexityWarning.className = 'complexity-warning medium';
+            } else {
+                complexityWarning.style.display = 'none';
             }
         }
 
