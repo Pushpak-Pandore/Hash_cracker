@@ -242,10 +242,7 @@ import string
 import itertools
 import multiprocessing
 import bcrypt
-try:
-    import scrypt
-except ImportError:
-    scrypt = None
+import scrypt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, HashingError
 import queue
