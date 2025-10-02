@@ -2,7 +2,7 @@
 
 **HashCrackX** is a powerful and modular hash cracking tool built for penetration testers, cybersecurity researchers, and ethical hackers. It supports both a **Command-Line Interface (CLI)** and a real-time interactive **Web GUI** powered by Flask + SocketIO.
 
-![HashCrackX Banner](screenshots/banner.png)
+![HashCrackX Banner](hashcrackx_web/static/banner.jpg)
 
 ## 🎯 Features
 
