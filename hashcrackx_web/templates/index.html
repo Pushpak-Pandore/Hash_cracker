@@ -146,10 +146,14 @@
         const result = document.getElementById('result');
         const crackBtn = document.getElementById('crackBtn');
         const successSound = document.getElementById('successSound');
+        const hashInput = document.getElementById('hashInput');
+        const hashInfo = document.getElementById('hashInfo');
+        const complexityWarning = document.getElementById('complexityWarning');
 
         let startTime;
         let timerInterval;
         let isRunning = false;
+        let currentTheme = 'dark';
 
         function toggleModeFields() {
             const mode = document.getElementById('mode').value;
