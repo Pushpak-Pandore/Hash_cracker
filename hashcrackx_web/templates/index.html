@@ -423,8 +423,32 @@
             // Backend timer updates (if needed)
         });
 
+        // Event listeners for enhanced functionality
+        hashInput.addEventListener('input', updateHashInfo);
+        document.getElementById('charset').addEventListener('change', updateComplexityWarning);
+        document.getElementById('minLength').addEventListener('input', updateComplexityWarning);
+        document.getElementById('maxLength').addEventListener('input', updateComplexityWarning);
+        
+        // Validate length inputs
+        document.getElementById('minLength').addEventListener('change', function() {
+            const minVal = parseInt(this.value);
+            const maxVal = parseInt(document.getElementById('maxLength').value);
+            if (minVal > maxVal) {
+                document.getElementById('maxLength').value = minVal;
+            }
+        });
+        
+        document.getElementById('maxLength').addEventListener('change', function() {
+            const maxVal = parseInt(this.value);
+            const minVal = parseInt(document.getElementById('minLength').value);
+            if (maxVal < minVal) {
+                document.getElementById('minLength').value = maxVal;
+            }
+        });
+
         // Initialize
         toggleModeFields();
+        updateHashInfo();
     </script>
 </body>
 </html>
