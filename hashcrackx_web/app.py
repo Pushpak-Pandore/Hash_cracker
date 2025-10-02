@@ -764,17 +764,91 @@ def handle_crack(data):
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    """Enhanced file upload with better validation and security"""
     if 'wordlist' not in request.files:
         return {"error": "No file part"}, 400
 
     file = request.files['wordlist']
     if file.filename == '' or not allowed_file(file.filename):
-        return {"error": "Invalid file"}, 400
+        return {"error": "Invalid file type. Only .txt files are allowed."}, 400
+
+    # Additional security checks
+    if file.content_length and file.content_length > 50 * 1024 * 1024:  # 50MB limit
+        return {"error": "File too large. Maximum size is 50MB."}, 400
 
     filename = secure_filename(file.filename)
+    # Add timestamp to avoid conflicts
+    timestamp = str(int(time.time()))
+    filename = f"{timestamp}_{filename}"
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
-    return {"success": True, "path": filepath}, 200
+    
+    try:
+        file.save(filepath)
+        
+        # Validate file content
+        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+            first_lines = [f.readline() for _ in range(5)]  # Check first 5 lines
+            if not any(line.strip() for line in first_lines):
+                os.remove(filepath)
+                return {"error": "File appears to be empty or invalid."}, 400
+        
+        return {"success": True, "path": filepath}, 200
+        
+    except Exception as e:
+        return {"error": f"Upload failed: {str(e)}"}, 500
+
+@app.route('/hash_info/<hash_value>')
+def hash_info(hash_value):
+    """Provide information about a hash"""
+    hash_type = detect_hash_type(hash_value)
+    length = len(hash_value.strip())
+    
+    info = {
+        "hash": hash_value,
+        "detected_type": hash_type,
+        "length": length,
+        "is_valid": hash_type != 'unknown',
+        "supported": hash_type in ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512', 'bcrypt', 'argon2']
+    }
+    
+    return info
+
+@app.route('/session_status')
+def session_status():
+    """Get status of active cracking sessions"""
+    status = {
+        "active_sessions": len(active_sessions),
+        "sessions": []
+    }
+    
+    for sid, session in active_sessions.items():
+        session_info = {
+            "id": sid,
+            "hash_type": session.get('hash_type'),
+            "mode": session.get('mode'),
+            "duration": str(datetime.now() - session.get('start_time', datetime.now())),
+            "status": session.get('status', 'unknown')
+        }
+        status["sessions"].append(session_info)
+    
+    return status
+
+@app.route('/compare_hashes', methods=['POST'])
+def compare_hashes():
+    """Compare multiple hashes and detect types"""
+    data = request.get_json()
+    hashes = data.get('hashes', [])
+    
+    results = []
+    for hash_value in hashes:
+        hash_type = detect_hash_type(hash_value)
+        results.append({
+            "hash": hash_value,
+            "type": hash_type,
+            "length": len(hash_value.strip())
+        })
+    
+    return {"results": results}
 
 if __name__ == '__main__':
     print("🚀 Visit the app at: http://localhost:5000")
