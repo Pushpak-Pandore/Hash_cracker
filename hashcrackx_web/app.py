@@ -516,35 +516,146 @@ def brute_force(hash_input, hash_type, charset, min_len, max_len, session_id=Non
     emit_log("[!] Password not found using brute-force.")
     emit_log(f"[!] Total time: {time.time() - start_time:.2f} seconds")
 
-def wordlist_attack(hash_input, hash_type, wordlist_path):
-    emit_log("[*] Starting wordlist attack...")
+def wordlist_attack_worker(args):
+    """Worker function for multiprocessing wordlist attack"""
+    words_chunk, hash_type, target_hash = args
+    
+    for word in words_chunk:
+        word = word.strip()
+        if not word:
+            continue
+            
+        if verify_hash(hash_type, word, target_hash):
+            return word
+    return None
+
+def wordlist_attack(hash_input, hash_type, wordlist_path, session_id=None):
+    """Enhanced multiprocessing wordlist attack"""
+    emit_log("[*] Starting enhanced wordlist attack...")
+    emit_log(f"[*] Hash type: {hash_type}")
+    emit_log(f"[*] Wordlist: {os.path.basename(wordlist_path)}")
+    
     start_time = time.time()
     stop_event = threading.Event()
-    threading.Thread(target=start_timer, args=(start_time, stop_event)).start()
+    timer_thread = threading.Thread(target=start_timer, args=(start_time, stop_event))
+    timer_thread.start()
 
     try:
-        with open(wordlist_path, 'r', errors='ignore') as file:
-            lines = file.readlines()
-
-        total = len(lines)
-        for i, line in enumerate(lines):
-            guess = line.strip()
-            hashed = compute_hash(hash_type, guess)
-            progress = int(((i+1)/total) * 100)
-            emit_progress(progress)
-            if hashed == hash_input:
-                stop_event.set()
-                emit_cracked(f"✅ Password found: {guess}")
-                emit_log(f"[+] Cracked: {guess}")
-                return
-    except Exception as e:
-        emit_log(f"[!] Error: {str(e)}")
+        # Read and preprocess wordlist
+        with open(wordlist_path, 'r', errors='ignore', encoding='utf-8') as file:
+            words = [line.strip() for line in file if line.strip()]
+        
+        total_words = len(words)
+        emit_log(f"[*] Loaded {total_words:,} words from wordlist")
+        
+        if total_words == 0:
+            emit_log("[!] Empty wordlist!")
+            stop_event.set()
+            timer_thread.join(timeout=1)
+            return
+        
+        # Use multiprocessing for better performance
+        cpu_count = multiprocessing.cpu_count()
+        chunk_size = max(100, total_words // (cpu_count * 4))
+        
+        emit_log(f"[*] Using {cpu_count} CPU cores")
+        emit_log(f"[*] Processing in chunks of {chunk_size} words")
+        
+        # Split words into chunks
+        chunks = []
+        for i in range(0, total_words, chunk_size):
+            word_chunk = words[i:i + chunk_size]
+            chunks.append((word_chunk, hash_type, hash_input))
+        
+        # Process chunks with multiprocessing
+        processed_words = 0
+        
+        with multiprocessing.Pool(processes=cpu_count) as pool:
+            # Process in batches to manage memory
+            batch_size = cpu_count * 2
+            
+            for batch_start in range(0, len(chunks), batch_size):
+                batch_end = min(batch_start + batch_size, len(chunks))
+                batch_chunks = chunks[batch_start:batch_end]
+                
+                try:
+                    results = pool.map(wordlist_attack_worker, batch_chunks)
+                    
+                    # Check results
+                    for result in results:
+                        if result:
+                            stop_event.set()
+                            pool.terminate()
+                            timer_thread.join(timeout=1)
+                            emit_cracked(f"✅ Password found: {result}")
+                            emit_log(f"[+] Password cracked: {result}")
+                            emit_log(f"[+] Time taken: {time.time() - start_time:.2f} seconds")
+                            
+                            # Cleanup wordlist file
+                            try:
+                                os.remove(wordlist_path)
+                                emit_log("[*] Wordlist file cleaned up")
+                            except:
+                                pass
+                            return
+                    
+                    # Update progress
+                    processed_chunks = min(batch_end, len(chunks))
+                    processed_words = processed_chunks * chunk_size
+                    progress = min(int((processed_words / total_words) * 100), 99)
+                    emit_progress(progress)
+                    
+                    if processed_chunks % 5 == 0:  # Log every 5 batches
+                        elapsed = time.time() - start_time
+                        rate = processed_words / elapsed if elapsed > 0 else 0
+                        emit_log(f"[*] Progress: {progress}% ({processed_words:,}/{total_words:,} words, {rate:.0f} w/s)")
+                        
+                except Exception as e:
+                    emit_log(f"[!] Multiprocessing error: {e}")
+                    # Fallback to single-threaded processing
+                    emit_log("[*] Falling back to single-threaded processing...")
+                    
+                    for word in words[processed_words:]:
+                        word = word.strip()
+                        if not word:
+                            continue
+                            
+                        if verify_hash(hash_type, word, hash_input):
+                            stop_event.set()
+                            timer_thread.join(timeout=1)
+                            emit_cracked(f"✅ Password found: {word}")
+                            emit_log(f"[+] Password cracked: {word}")
+                            
+                            # Cleanup
+                            try:
+                                os.remove(wordlist_path)
+                            except:
+                                pass
+                            return
+                        
+                        processed_words += 1
+                        if processed_words % 1000 == 0:
+                            progress = int((processed_words / total_words) * 100)
+                            emit_progress(progress)
+                    break
+        
         stop_event.set()
-        return
-
-    stop_event.set()
-    emit_cracked("❌ Password not found using wordlist.")
-    emit_log("[!] Password not found using wordlist.")
+        timer_thread.join(timeout=1)
+        emit_cracked("❌ Password not found in wordlist.")
+        emit_log("[!] Password not found in wordlist.")
+        emit_log(f"[!] Checked {total_words:,} passwords in {time.time() - start_time:.2f} seconds")
+        
+    except Exception as e:
+        emit_log(f"[!] Wordlist attack error: {str(e)}")
+        stop_event.set()
+        timer_thread.join(timeout=1)
+    
+    # Cleanup wordlist file
+    try:
+        os.remove(wordlist_path)
+        emit_log("[*] Wordlist file cleaned up")
+    except:
+        pass
 
 @app.route('/')
 def index():
