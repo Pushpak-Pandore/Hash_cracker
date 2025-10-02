@@ -663,22 +663,104 @@ def index():
 
 @socketio.on('start_crack')
 def handle_crack(data):
-    hash_input = data['hash']
-    hash_type = data['hash_type'] or detect_hash_type(hash_input)
-    mode = data['mode']
-
-    emit_log(f"[*] Auto-detected hash type: {hash_type}")
+    """Enhanced crack handler with session management and rate limiting"""
+    
+    # Generate session ID for tracking
+    session_id = secrets.token_hex(8)
+    client_id = request.sid
+    
+    # Rate limiting check (max 3 concurrent sessions per IP)
+    client_sessions = [s for s in active_sessions.values() if s.get('client_id') == client_id]
+    if len(client_sessions) >= 3:
+        emit_log("[!] Rate limit exceeded. Maximum 3 concurrent sessions allowed.")
+        emit_cracked("❌ Rate limit exceeded. Please wait for current sessions to complete.")
+        return
+    
+    hash_input = data.get('hash', '').strip()
+    hash_type = data.get('hash_type', '') or detect_hash_type(hash_input)
+    mode = data.get('mode', '')
+    
+    # Validation
+    if not hash_input:
+        emit_log("[!] Error: No hash provided")
+        emit_cracked("❌ Please enter a hash to crack")
+        return
+    
+    if not mode:
+        emit_log("[!] Error: No cracking mode specified")
+        emit_cracked("❌ Please select a cracking mode")
+        return
+    
+    # Store session info
+    active_sessions[session_id] = {
+        'client_id': client_id,
+        'hash': hash_input,
+        'hash_type': hash_type,
+        'mode': mode,
+        'start_time': datetime.now(),
+        'status': 'running'
+    }
+    
+    emit_log(f"[*] Session ID: {session_id}")
+    emit_log(f"[*] Hash: {hash_input[:20]}{'...' if len(hash_input) > 20 else ''}")
+    emit_log(f"[*] Detected hash type: {hash_type}")
+    emit_log(f"[*] Mode: {mode}")
 
     if mode == 'brute':
-        charset_key = data['charset']
-        min_len = int(data['min_length'])
-        max_len = int(data['max_length'])
-        charset = CHARSET_MAP.get(charset_key, string.ascii_lowercase)
-        threading.Thread(target=brute_force, args=(hash_input, hash_type, charset, min_len, max_len)).start()
+        charset_key = data.get('charset', 'alphanumeric')
+        min_len = int(data.get('min_length', 1))
+        max_len = int(data.get('max_length', 4))
+        
+        # Validation for brute force
+        if max_len > 8:
+            emit_log("[!] Warning: Maximum length limited to 8 for performance")
+            max_len = 8
+        
+        if min_len > max_len:
+            emit_log("[!] Error: Minimum length cannot be greater than maximum length")
+            emit_cracked("❌ Invalid length parameters")
+            del active_sessions[session_id]
+            return
+        
+        charset = CHARSET_MAP.get(charset_key, string.ascii_lowercase + string.digits)
+        
+        # Start brute force in separate thread
+        crack_thread = threading.Thread(
+            target=brute_force, 
+            args=(hash_input, hash_type, charset, min_len, max_len, session_id)
+        )
+        crack_thread.daemon = True
+        crack_thread.start()
 
     elif mode == 'wordlist':
-        wordlist_file = data['wordlist_file']
-        threading.Thread(target=wordlist_attack, args=(hash_input, hash_type, wordlist_file)).start()
+        wordlist_file = data.get('wordlist_file')
+        
+        if not wordlist_file or not os.path.exists(wordlist_file):
+            emit_log("[!] Error: Wordlist file not found")
+            emit_cracked("❌ Please upload a valid wordlist file")
+            del active_sessions[session_id]
+            return
+        
+        # Check file size
+        file_size = os.path.getsize(wordlist_file)
+        if file_size > 50 * 1024 * 1024:  # 50MB limit
+            emit_log("[!] Error: Wordlist file too large (max 50MB)")
+            emit_cracked("❌ Wordlist file is too large")
+            del active_sessions[session_id]
+            return
+        
+        # Start wordlist attack in separate thread
+        crack_thread = threading.Thread(
+            target=wordlist_attack, 
+            args=(hash_input, hash_type, wordlist_file, session_id)
+        )
+        crack_thread.daemon = True
+        crack_thread.start()
+    
+    else:
+        emit_log(f"[!] Unknown mode: {mode}")
+        emit_cracked("❌ Unknown cracking mode")
+        del active_sessions[session_id]
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
