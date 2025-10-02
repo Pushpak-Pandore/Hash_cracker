@@ -365,7 +365,10 @@ def verify_hash(hash_type, text, target_hash):
             except (VerifyMismatchError, HashingError):
                 return False
         elif hash_type == 'scrypt':
-            # Scrypt verification is more complex, skip for now
+            # Scrypt verification is more complex, skip for now  
+            if scrypt:
+                # TODO: Implement scrypt verification with proper salt handling
+                pass
             return False
         else:
             computed = compute_hash(hash_type, text)
