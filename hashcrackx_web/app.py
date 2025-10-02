@@ -231,7 +231,7 @@ if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=True, use_reloader=False)"""
     
     
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
 import os
@@ -240,6 +240,15 @@ import hashlib
 import threading
 import string
 import itertools
+import multiprocessing
+import bcrypt
+import scrypt
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError, HashingError
+import queue
+import math
+from datetime import datetime, timedelta
+import secrets
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'txt'}
