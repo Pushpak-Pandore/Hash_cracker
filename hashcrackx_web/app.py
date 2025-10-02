@@ -391,30 +391,130 @@ def start_timer(start_time, stop_event):
         emit_timer(elapsed)
         time.sleep(1)
 
-def brute_force(hash_input, hash_type, charset, min_len, max_len):
-    emit_log("[*] Starting brute-force...")
+def brute_force_worker(args):
+    """Worker function for multiprocessing brute force"""
+    charset, length, start_idx, end_idx, hash_type, target_hash = args
+    
+    for i in range(start_idx, min(end_idx, len(charset) ** length)):
+        # Convert index to combination
+        temp = i
+        combo = []
+        for _ in range(length):
+            combo.append(charset[temp % len(charset)])
+            temp //= len(charset)
+        
+        password = ''.join(reversed(combo))
+        
+        if verify_hash(hash_type, password, target_hash):
+            return password
+    return None
+
+def calculate_combinations(charset_len, min_len, max_len):
+    """Calculate total combinations for progress estimation"""
+    total = 0
+    for length in range(min_len, max_len + 1):
+        total += charset_len ** length
+    return total
+
+def estimate_time(combinations, charset_len):
+    """Estimate cracking time based on complexity"""
+    # Rough estimates based on hash type and combinations
+    base_rate = 1000000  # hashes per second (conservative estimate)
+    seconds = combinations / base_rate
+    
+    if seconds < 60:
+        return f"{int(seconds)} seconds"
+    elif seconds < 3600:
+        return f"{int(seconds/60)} minutes"
+    elif seconds < 86400:
+        return f"{int(seconds/3600)} hours"
+    else:
+        return f"{int(seconds/86400)} days"
+
+def brute_force(hash_input, hash_type, charset, min_len, max_len, session_id=None):
+    """Enhanced multiprocessing brute force with better progress estimation"""
+    emit_log("[*] Starting enhanced brute-force attack...")
+    emit_log(f"[*] Hash type: {hash_type}")
+    emit_log(f"[*] Character set: {len(charset)} characters")
+    emit_log(f"[*] Length range: {min_len}-{max_len}")
+    
     start_time = time.time()
     stop_event = threading.Event()
-    threading.Thread(target=start_timer, args=(start_time, stop_event)).start()
+    timer_thread = threading.Thread(target=start_timer, args=(start_time, stop_event))
+    timer_thread.start()
 
-    total_combinations = sum(len(charset) ** i for i in range(min_len, max_len + 1))
-    current = 0
-
+    total_combinations = calculate_combinations(len(charset), min_len, max_len)
+    emit_log(f"[*] Total combinations: {total_combinations:,}")
+    emit_log(f"[*] Estimated time: {estimate_time(total_combinations, len(charset))}")
+    
+    # Use multiprocessing for better performance
+    cpu_count = multiprocessing.cpu_count()
+    chunk_size = max(1000, total_combinations // (cpu_count * 10))
+    
+    emit_log(f"[*] Using {cpu_count} CPU cores")
+    
+    current_progress = 0
+    
+    # Process each length separately for better progress tracking
     for length in range(min_len, max_len + 1):
-        for attempt in itertools.product(charset, repeat=length):
-            guess = ''.join(attempt)
-            hashed = compute_hash(hash_type, guess)
-            current += 1
-            progress = int((current / total_combinations) * 100)
-            emit_progress(progress)
-            if hashed == hash_input:
-                stop_event.set()
-                emit_cracked(f"✅ Password found: {guess}")
-                emit_log(f"[+] Cracked: {guess}")
-                return
+        length_combinations = len(charset) ** length
+        emit_log(f"[*] Processing length {length} ({length_combinations:,} combinations)...")
+        
+        # Split work into chunks for multiprocessing
+        chunks = []
+        for i in range(0, length_combinations, chunk_size):
+            end_idx = min(i + chunk_size, length_combinations)
+            chunks.append((charset, length, i, end_idx, hash_type, hash_input))
+        
+        # Process chunks in batches to avoid memory issues
+        batch_size = cpu_count * 2
+        
+        with multiprocessing.Pool(processes=cpu_count) as pool:
+            for batch_start in range(0, len(chunks), batch_size):
+                batch_end = min(batch_start + batch_size, len(chunks))
+                batch_chunks = chunks[batch_start:batch_end]
+                
+                try:
+                    results = pool.map(brute_force_worker, batch_chunks)
+                    
+                    # Check results
+                    for result in results:
+                        if result:
+                            stop_event.set()
+                            pool.terminate()
+                            timer_thread.join(timeout=1)
+                            emit_cracked(f"✅ Password found: {result}")
+                            emit_log(f"[+] Password cracked: {result}")
+                            emit_log(f"[+] Time taken: {time.time() - start_time:.2f} seconds")
+                            return
+                    
+                    # Update progress
+                    processed_chunks = min(batch_end, len(chunks))
+                    length_progress = (processed_chunks / len(chunks)) * 100
+                    
+                    # Calculate overall progress
+                    lengths_completed = length - min_len
+                    total_lengths = max_len - min_len + 1
+                    overall_progress = ((lengths_completed / total_lengths) + 
+                                     (length_progress / 100) / total_lengths) * 100
+                    
+                    emit_progress(min(int(overall_progress), 99))
+                    
+                    if processed_chunks % 5 == 0:  # Update every 5 chunks
+                        elapsed = time.time() - start_time
+                        rate = (current_progress * total_combinations / 100) / elapsed if elapsed > 0 else 0
+                        emit_log(f"[*] Progress: {overall_progress:.1f}% (Rate: {rate:.0f} h/s)")
+                        
+                except Exception as e:
+                    emit_log(f"[!] Multiprocessing error: {e}")
+                    # Fallback to single-threaded
+                    break
+    
     stop_event.set()
+    timer_thread.join(timeout=1)
     emit_cracked("❌ Password not found using brute-force.")
     emit_log("[!] Password not found using brute-force.")
+    emit_log(f"[!] Total time: {time.time() - start_time:.2f} seconds")
 
 def wordlist_attack(hash_input, hash_type, wordlist_path):
     emit_log("[*] Starting wordlist attack...")
