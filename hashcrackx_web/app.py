@@ -291,15 +291,38 @@ HASH_FUNCTIONS = {
 }
 
 def detect_hash_type(hash_str):
-    length = len(hash_str)
-    return {
+    """Enhanced hash type detection with better accuracy"""
+    length = len(hash_str.strip())
+    
+    # Check for specific hash patterns first
+    if hash_str.startswith('$2a$') or hash_str.startswith('$2b$') or hash_str.startswith('$2y$'):
+        return 'bcrypt'
+    elif hash_str.startswith('$argon2'):
+        return 'argon2'
+    elif hash_str.startswith('$7$'):
+        return 'scrypt'
+    
+    # Standard length-based detection
+    length_map = {
         32: 'md5',
-        40: 'sha1',
+        40: 'sha1', 
         56: 'sha224',
         64: 'sha256',
         96: 'sha384',
         128: 'sha512'
-    }.get(length, 'md5')
+    }
+    
+    detected_type = length_map.get(length, 'md5')
+    
+    # Additional validation for hex strings
+    if length in [32, 40, 56, 64, 96, 128]:
+        try:
+            int(hash_str, 16)  # Validate it's a valid hex string
+            return detected_type
+        except ValueError:
+            return 'unknown'
+    
+    return detected_type
 
 def compute_hash(hash_type, text):
     return getattr(hashlib, hash_type)(text.encode()).hexdigest()
